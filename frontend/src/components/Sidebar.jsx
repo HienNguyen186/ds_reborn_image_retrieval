@@ -1,14 +1,13 @@
 import {
-  AudioLines, Blend, ChevronLeft, ChevronRight, Clock3, Flame, Gem, Menu, Moon,
+  AudioLines, ChevronLeft, ChevronRight, Clock3, Flame, Gem, Menu, Moon,
   ImagePlus, Orbit, Plus, ScanText, Search, Settings, Sparkles, Sun, Trash2, Images, X,
-  WandSparkles, History, Palette,
+  WandSparkles, History,
 } from "lucide-react";
 import { useState } from "react";
 import { useVideoFilter } from "./VideoFilter";
-import { ColorGridEditor } from "./ColorSearch";
 import { SEARCH_MODES } from "../config/searchModes";
 
-const MODE_ICONS = { text: Search, temporal: Clock3, auto: WandSparkles, ocr: ScanText, asr: AudioLines, fusion: Blend, color: Palette };
+const MODE_ICONS = { text: Search, temporal: Clock3, auto: WandSparkles, ocr: ScanText, asr: AudioLines };
 
 const BRAND_VARIANTS = [
   { icon: Sparkles, className: "is-blue", label: "Spark" },
@@ -24,7 +23,6 @@ export default function Sidebar({
   theme, mode, queryClauses, queryConnectors = [], clauseImages = [[]], expanded, loading, disabled, onToggleExpanded,
   onModeChange, onClausesChange, onAddClauseImages, onRemoveClauseImage, onSearch, onToggleTheme, onReset,
   onOpenSettings, onOpenPreview,
-  colorGrid, onColorGridChange, onColorSearch,
 }) {
   const clauses = queryClauses?.length ? queryClauses : [""];
   const videoFilter = useVideoFilter();
@@ -127,12 +125,7 @@ export default function Sidebar({
               </div>
             </section>
 
-            {mode === "color" && <section className="sidebar-section sidebar-color-search">
-              <p className="sidebar-section-label">COLOR CANVAS</p>
-              <ColorGridEditor compact value={colorGrid} onChange={onColorGridChange} onSearch={onColorSearch} loading={loading} />
-            </section>}
-
-            {mode !== "color" && <section className="sidebar-section clause-builder">
+            <section className="sidebar-section clause-builder">
               <div className="clause-builder-heading">
                 <div>
                   <p className="sidebar-section-label">QUERY BUILDER</p>
@@ -190,7 +183,7 @@ export default function Sidebar({
                 disabled={loading || disabled || (!clauses.some((clause) => clause.trim()) && !clauseImages.some((items) => items.length > 0))}>
                 <Search size={17} /><span>{loading ? "Searching..." : "Run search"}</span>
               </button>
-            </section>}
+            </section>
 
             <button className="sidebar-preview-wide" type="button" onClick={onOpenPreview}><Images size={17} /> Duyệt ảnh</button>
           </div>

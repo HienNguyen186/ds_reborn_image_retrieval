@@ -22,8 +22,6 @@ import SimilarityFramesModal from "./components/SimilarityFramesModal";
 import ImageViewer from "./components/ImageViewer";
 import ImageBrowser from "./components/ImageBrowser";
 import SubmissionQueueModal from "./components/SubmissionQueueModal";
-import ColorSearchModal from "./components/ColorSearch";
-import { EMPTY_COLOR_GRID, selectedColorCells } from "./utils/colorGrid";
 import { useRetrievalSearch } from "./hooks/useRetrievalSearch";
 import {
   checkBackendHealth,
@@ -140,8 +138,6 @@ function RetrievalApp() {
   const [theme, setTheme] = useState("dark");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [browserImages, setBrowserImages] = useState([]);
-  const [colorModalOpen, setColorModalOpen] = useState(false);
-  const [colorGrid, setColorGrid] = useState(() => [...EMPTY_COLOR_GRID]);
   const [model, setModel] = useState("");
   const [availableModels, setAvailableModels] = useState([]);
   const [semanticModelRoles, setSemanticModelRoles] = useState({ local: null, global: null });
@@ -153,16 +149,6 @@ function RetrievalApp() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [resultsHeaderCollapsed, setResultsHeaderCollapsed] = useState(false);
   const [durationLimit, setDurationLimit] = useState(-1);
-  const [fusionConfig, setFusionConfig] = useState({
-    semanticModels: [],
-    temporal: false,
-    durationLimit: -1,
-    useOcr: false,
-    useAsr: false,
-    weights: { semantic: 0.8, ocr: 0.1, asr: 0.1 },
-    semanticLambda: 0.5,
-    hasConfig: false,
-  });
   const [columns, setColumns] = useState(3);
   const [grouped, setGrouped] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -229,8 +215,6 @@ function RetrievalApp() {
     error,
     search,
     searchMultimodal,
-    searchWithFusion,
-    searchByColor,
     reset,
   } = useRetrievalSearch();
 
@@ -299,16 +283,7 @@ function RetrievalApp() {
     };
   }, [settings.dataset, settings.evaluationId, settings.godMode, settings.godModeEndpoint]);
 
-  const resolvedMode = useMemo(() => {
-    return mode === "temporal" ||
-      mode === "auto" ||
-      mode === "ocr" ||
-      mode === "asr" ||
-      mode === "fusion"
-      || mode === "color"
-      ? mode
-      : "semantic";
-  }, [mode]);
+  const resolvedMode = mode === "auto" ? "auto" : "semantic";
 
   const isHeavyDataset = deferredResults.length >= 120;
 
@@ -494,7 +469,6 @@ function RetrievalApp() {
       reasoningEnabled,
       availableModels,
       semanticModelRoles,
-      fusionConfig,
       queryClauses,
       queryConnectors,
       clauseImages,
@@ -504,13 +478,11 @@ function RetrievalApp() {
       onInlineClauseChange: handleInlineClauseChange,
       onAddClauseImages: handleAddClauseImages,
       onInsertClauseImages: handleInsertClauseImages,
-      onOpenColorSearch: () => setColorModalOpen(true),
       onRemoveClauseImage: handleRemoveClauseImage,
       onDurationLimitChange: setDurationLimit,
       onReasoningToggle: setReasoningEnabled,
-      onFusionConfigChange: setFusionConfig,
     }),
-    [query, theme, model, mode, loading, backendReady, durationLimit, reasoningEnabled, availableModels, semanticModelRoles, fusionConfig, queryClauses, queryConnectors, clauseImages, handleModeChange, handleQueryChange, handleInlineClauseChange, handleAddClauseImages, handleInsertClauseImages, handleRemoveClauseImage]
+    [query, theme, model, mode, loading, backendReady, durationLimit, reasoningEnabled, availableModels, semanticModelRoles, queryClauses, queryConnectors, clauseImages, handleModeChange, handleQueryChange, handleInlineClauseChange, handleAddClauseImages, handleInsertClauseImages, handleRemoveClauseImage]
   );
 
   // ── Bootstrap ────────────────────────────────────────
@@ -605,26 +577,6 @@ function RetrievalApp() {
     [dismissToast]
   );
 
-  const handleColorSearch = useCallback(async () => {
-    const cells = selectedColorCells(colorGrid);
-    if (!cells.length || loading || !backendReady) return;
-    scrollResultsToTop();
-    setGodModeResults([]);
-    setMode("color");
-    setSelected(null);
-    setRerankResultsData(null);
-    setGroupSearchOverrides({});
-    setGroupSearchLoading({});
-    setGroupSearchQueries({});
-    groupSearchRunRef.current.clear();
-    try {
-      await searchByColor({ dataset: settings.dataset, cells, topK: settings.topK });
-      setColorModalOpen(false);
-    } catch (err) {
-      pushToast("warning", "Color search failed", getErrorMessage(err));
-    }
-  }, [backendReady, colorGrid, loading, pushToast, scrollResultsToTop, searchByColor, settings.dataset, settings.topK]);
-
   // ── Stable UI handlers ───────────────────────────────
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
@@ -697,9 +649,7 @@ function RetrievalApp() {
     if (nextSettings.dataset !== settings.dataset) {
       handleReset();
       setGodModeResults(godModeResults);
-      setColorGrid([...EMPTY_COLOR_GRID]);
       setPreviewOpen(false);
-      setColorModalOpen(false);
     }
     setSettings(nextSettings);
   }, [godModeResults, handleReset, settings.dataset]);
@@ -758,22 +708,6 @@ function RetrievalApp() {
             modelKey: model,
             durationLimit: nextDurationLimit,
           });
-        } else if (searchMode === "fusion") {
-          const cfg = (typeof payload === "object" && payload?.fusionConfig) || fusionConfig;
-          if (!cfg?.hasConfig) {
-            pushToast("warning", "Fusion is not configured", "Open Fusion settings and select at least one model or method before searching.");
-            return;
-          }
-          await searchWithFusion({
-            dataset: settings.dataset,
-            query: cleanQuery,
-            topK: settings.topK,
-            candidateMultiplier: settings.candidateMultiplier,
-            useSplit: true,
-            useTranslate: settings.useTranslate,
-             fusionConfig: cfg,
-             reasoning: false,
-          });
         } else {
           await search({
             dataset: settings.dataset,
@@ -797,7 +731,7 @@ function RetrievalApp() {
         pushToast("warning", "Search failed", getErrorMessage(err));
       }
     },
-    [backendReady, clauseImages, durationLimit, fusionConfig, loading, model, pushToast, queryClauses, queryConnectors, resolvedMode, scrollResultsToTop, search, searchMultimodal, searchWithFusion, settings]
+    [backendReady, clauseImages, durationLimit, loading, model, pushToast, queryClauses, queryConnectors, resolvedMode, scrollResultsToTop, search, searchMultimodal, settings]
   );
 
   const handleSearchInVideo = useCallback(
@@ -844,14 +778,13 @@ function RetrievalApp() {
       query,
       searchMode: resolvedMode,
       durationLimit: resolvedMode === "temporal" ? Number(durationLimit) : -1,
-      fusionConfig: resolvedMode === "fusion" ? fusionConfig : null,
       reasoning: false,
     });
-  }, [durationLimit, fusionConfig, handleSearch, query, resolvedMode]);
+  }, [durationLimit, handleSearch, query, resolvedMode]);
 
   // Debounce automatic reranking and ignore stale updates.
   useEffect(() => {
-    if (!rerankEnabled || mode === "fusion" || rawResults.length === 0 || loading || !lastQuery) return;
+    if (!rerankEnabled || rawResults.length === 0 || loading || !lastQuery) return;
 
     const runId = ++rerankRunRef.current;
     let cancelled = false;
@@ -1051,15 +984,6 @@ function RetrievalApp() {
         const nextModels = Array.isArray(models) ? models : [];
         setAvailableModels(nextModels);
         setModel((previous) => nextModels.includes(previous) ? previous : (nextModels[0] || ""));
-        setFusionConfig((previous) => {
-          const semanticModels = previous.semanticModels.filter(({ key }) => nextModels.includes(key));
-          if (semanticModels.length === previous.semanticModels.length) return previous;
-          return {
-            ...previous,
-            semanticModels,
-            hasConfig: semanticModels.length > 0 || previous.useOcr || previous.useAsr,
-          };
-        });
       })
       .catch((modelsError) => {
         if (!alive) return;
@@ -1219,9 +1143,6 @@ function RetrievalApp() {
           onReset={handleReset}
           onOpenSettings={handleOpenSettings}
           onOpenPreview={() => setPreviewOpen(true)}
-          colorGrid={colorGrid}
-          onColorGridChange={setColorGrid}
-          onColorSearch={handleColorSearch}
         />
 
         <main className={hasResults ? "main-layout has-results" : "main-layout is-home"}>
@@ -1345,9 +1266,6 @@ function RetrievalApp() {
         />
 
         <ImageBrowser open={previewOpen} onClose={() => setPreviewOpen(false)} onOpenImage={(item, photos) => { setBrowserImages(photos); handleOpenImage(item); }} />
-
-        <ColorSearchModal open={colorModalOpen} value={colorGrid} onChange={setColorGrid}
-          loading={loading} onClose={() => setColorModalOpen(false)} onSearch={handleColorSearch} />
 
         <SettingsPanel
           open={settingsOpen}

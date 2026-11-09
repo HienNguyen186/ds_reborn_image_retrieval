@@ -68,7 +68,13 @@ try {
                 $dresConfig = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'configs\dres.json') -Raw | ConvertFrom-Json
                 $env:VITE_SUBMISSION = $dresConfig.base_url
                 $env:VITE_TEAM_ID = $dresConfig.username
-                $env:VITE_TEAM_PASSWORD = ''
+                if ($Mode -eq 'build') {
+                    $env:VITE_TEAM_PASSWORD = ''
+                }
+                else {
+                    # Let Vite read the user's ignored development-local defaults.
+                    Remove-Item Env:VITE_TEAM_PASSWORD -ErrorAction SilentlyContinue
+                }
                 $npmMode = if ($Mode -eq 'build') { 'build' } else { 'dev' }
                 & npm --prefix (Join-Path $projectDir 'frontend') run $npmMode
             }

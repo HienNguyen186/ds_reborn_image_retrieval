@@ -1,11 +1,9 @@
-import { Plus, Search, Mic, Zap, Settings2, X, ImagePlus, Palette } from "lucide-react";
+import { Plus, Search, Mic, Zap, X, ImagePlus } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
-import FusionSettingsModal from "./FusionSettingsModal";
 import { SEARCH_MODES, resolveSearchMode } from "../config/searchModes";
 
 export default function SearchBar({
   query = "",
-  theme = "dark",
   model,
   mode,
   loading,
@@ -13,8 +11,6 @@ export default function SearchBar({
   durationLimit = -1,
   reasoningEnabled = false,
   availableModels = [],
-  semanticModelRoles,
-  fusionConfig,
   queryClauses = [""],
   queryConnectors = [],
   clauseImages = [[]],
@@ -22,17 +18,14 @@ export default function SearchBar({
   onModeChange,
   onDurationLimitChange,
   onReasoningToggle,
-  onFusionConfigChange,
   onQueryChange,
   onInlineClauseChange,
   onInsertClauseImages,
-  onOpenColorSearch,
   onRemoveClauseImage,
   expandedByDefault = false,
   onSearch,
 }) {
   const [recording, setRecording] = useState(false);
-  const [fusionModalOpen, setFusionModalOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   // The home composer starts expanded; the bottom composer starts compact
   // and expands only when the query wraps past the normal height.
@@ -52,8 +45,6 @@ export default function SearchBar({
   const inlineInputRefs = useRef([]);
 
   const isTemporal = mode === "temporal";
-  const isFusion = mode === "fusion";
-  const isColor = mode === "color";
   const activeModeLabel = SEARCH_MODES.find((item) => item.key === mode)?.label ?? "Semantic";
   const searchPlaceholder = `${activeModeLabel} Search`;
   const hasQueryImages = clauseImages.some((items) => items.length > 0);
@@ -106,7 +97,6 @@ export default function SearchBar({
   }, []);
 
   function runSearch(nextQuery) {
-    if (isColor) { onOpenColorSearch?.(); return; }
     const cleanQuery = String(nextQuery || "").trim();
     if ((!cleanQuery && !hasQueryImages) || loading || disabled) return;
     const searchMode = resolveSearchMode(mode);
@@ -114,7 +104,6 @@ export default function SearchBar({
       query: cleanQuery,
       searchMode,
       durationLimit: searchMode === "temporal" ? Number(durationLimit) : -1,
-      fusionConfig: searchMode === "fusion" ? fusionConfig : null,
       reasoning: false,
     });
   }
@@ -366,7 +355,7 @@ export default function SearchBar({
 
             onChange={(event) => { insertFiles(event.target.files); event.target.value = ""; }} />
           <div className="search-add-menu-host">
-          <button type="button" className="search-icon-button" aria-label="Add image or color canvas"
+          <button type="button" className="search-icon-button" aria-label="Add image query"
             aria-expanded={addMenuOpen} title="Add query input" onClick={() => setAddMenuOpen((value) => !value)}>
             <Plus size={20} />
           </button>
@@ -374,14 +363,11 @@ export default function SearchBar({
             <button type="button" role="menuitem" onClick={() => { setAddMenuOpen(false); fileInputRef.current?.click(); }}>
               <ImagePlus size={16} /><span>Image query</span>
             </button>
-            <button type="button" role="menuitem" onClick={() => { setAddMenuOpen(false); onOpenColorSearch?.(); }}>
-              <Palette size={16} /><span>Colour canvas</span>
-            </button>
           </div>}
           </div>
 
           <div className="search-chat-controls">
-            {!isFusion && modelOptions.length > 0 && (
+            {modelOptions.length > 0 && (
               <select className="search-select" value={model} onChange={(e) => onModelChange(e.target.value)}>
                 {modelOptions.map((modelKey) => (
                   <option key={modelKey} value={modelKey}>{modelKey}</option>
@@ -424,19 +410,6 @@ export default function SearchBar({
               </button>
             )}
 
-            {isFusion && (
-              <button
-                type="button"
-                className={["search-icon-button", "fusion-settings-btn", fusionConfig?.hasConfig ? "has-config" : ""].filter(Boolean).join(" ")}
-                aria-label="Configure Fusion search"
-                title="Configure models, methods, and weights for Fusion search"
-                onClick={() => setFusionModalOpen(true)}
-                disabled={disabled}
-              >
-                <Settings2 size={18} />
-              </button>
-            )}
-
             <button
               type="button"
               className={["search-icon-button", "mic-button", recording ? "recording" : ""].filter(Boolean).join(" ")}
@@ -451,7 +424,7 @@ export default function SearchBar({
             <button
               type="submit"
               className="search-submit"
-              disabled={loading || disabled || (!isColor && !query.trim() && !hasQueryImages)}
+              disabled={loading || disabled || (!query.trim() && !hasQueryImages)}
               aria-label="Search"
             >
               <Search size={18} />
@@ -460,16 +433,6 @@ export default function SearchBar({
         </div>
       </div>
 
-      <FusionSettingsModal
-        key={fusionModalOpen ? "fusion-open" : "fusion-closed"}
-        open={fusionModalOpen}
-        theme={theme}
-        models={modelOptions}
-        modelRoles={semanticModelRoles}
-        value={fusionConfig}
-        onClose={() => setFusionModalOpen(false)}
-        onSave={(next) => onFusionConfigChange?.({ ...next, hasConfig: true })}
-      />
     </form>
   );
 }

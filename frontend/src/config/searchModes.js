@@ -1,8 +1,6 @@
 export const SEARCH_MODES = Object.freeze([
   { key: "text", searchMode: "semantic", label: "Semantic", description: "Visual meaning", shortcut: "Ctrl+1", code: "Digit1" },
   { key: "auto", searchMode: "auto", label: "Auto", description: "Detect query intent", shortcut: "Ctrl+3", code: "Digit3" },
-  { key: "fusion", searchMode: "fusion", label: "Fusion", description: "Combine sources", shortcut: "Ctrl+6", code: "Digit6" },
-  { key: "color", searchMode: "color", label: "Color", description: "Dominant color grid", shortcut: "Ctrl+7", code: "Digit7" },
 ]);
 
 export const SEARCH_MODE_BY_CODE = Object.freeze(

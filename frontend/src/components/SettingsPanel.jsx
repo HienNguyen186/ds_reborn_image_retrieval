@@ -1,4 +1,4 @@
-import { X, SlidersHorizontal, ShieldCheck, LogIn, LogOut, Crown } from "lucide-react";
+import { X, SlidersHorizontal, ShieldCheck, LogIn, LogOut } from "lucide-react";
 
 export default function SettingsPanel({
   open,
@@ -8,7 +8,6 @@ export default function SettingsPanel({
   onClose,
   onDresLogin,
   onDresLogout,
-  godModeConnected,
 }) {
   function updateField(key, value) {
     onChange({
@@ -28,24 +27,6 @@ export default function SettingsPanel({
         <button type="button" onClick={onClose}>
           <X size={17} />
         </button>
-      </div>
-
-      <div className="settings-section dataset-settings-section">
-        <h4>Dataset</h4>
-        <div className="dataset-selector" role="group" aria-label="Search dataset">
-          {["aic", "cam"].map((dataset) => (
-            <button
-              key={dataset}
-              type="button"
-              className={settings.dataset === dataset ? "active" : ""}
-              aria-pressed={settings.dataset === dataset}
-              onClick={() => updateField("dataset", dataset)}
-            >
-              {dataset.toUpperCase()}
-            </button>
-          ))}
-        </div>
-        <p className="settings-warning">All search methods are restricted to the selected physical dataset.</p>
       </div>
 
       <div className="settings-section">
@@ -71,34 +52,6 @@ export default function SettingsPanel({
             onChange={(e) => updateField("topK", Number(e.target.value))}
           />
         </label>
-      </div>
-
-      <div className="settings-section">
-        <h4><Crown size={15} /> Collaborative rerank</h4>
-
-        <SwitchRow
-          label="God Mode"
-          checked={settings.godMode}
-          onChange={(value) => updateField("godMode", value)}
-        />
-
-        <div className={settings.godMode && godModeConnected ? "dres-status connected" : "dres-status"}>
-          <span />
-          {settings.godMode ? (godModeConnected ? "Relay connected" : "Relay disconnected") : "God Mode disabled"}
-        </div>
-
-        <label className="setting-field">
-          <span>God Mode endpoint</span>
-          <input
-            value={settings.godModeEndpoint}
-            placeholder="https://independent-relay.example.com"
-            onChange={(e) => updateField("godModeEndpoint", e.target.value.replace(/\/+$/, ""))}
-          />
-        </label>
-
-        <p className="settings-warning">
-          Only correct DRES verdicts are relayed and pinned to reranked results for clients in the same evaluation.
-        </p>
       </div>
 
       <div className="settings-section">

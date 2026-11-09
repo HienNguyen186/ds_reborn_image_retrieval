@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useVideoFilter } from "../components/VideoFilter";
-import { searchRetrieval, searchFusion, searchMultimodalRetrieval, similaritySearch, searchColorRetrieval } from "../api/retrievalAPI";
+import { searchRetrieval, searchMultimodalRetrieval, similaritySearch } from "../api/retrievalAPI";
 
 export function useRetrievalSearch() {
   const { activeIds } = useVideoFilter();
@@ -87,72 +87,6 @@ export function useRetrievalSearch() {
     }
   }
 
-  async function searchWithFusion({
-    dataset,
-    query,
-    topK = 20,
-    candidateMultiplier,
-    useSplit = true,
-    useTranslate = true,
-    fusionConfig,
-    reasoning = false,
-  }) {
-    const cleanQuery = typeof query === "string" ? query.trim() : "";
-
-    if (!cleanQuery) {
-      return;
-    }
-
-    const requestId = ++requestIdRef.current;
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const data = await searchFusion({
-        dataset,
-        videoIds: activeIds,
-        query: cleanQuery,
-        topK,
-        candidateMultiplier,
-        useSplit,
-        useTranslate,
-        fusionConfig,
-        reasoning,
-      });
-
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-
-      setResults(data.results ?? []);
-      setLatency(data.latencyMs ?? null);
-      setSubQueries([]);
-      setCount(data.count ?? 0);
-      setLastQuery(data.query ?? cleanQuery);
-      setSearchMode("fusion");
-      setDurationLimit(data.durationLimit ?? -1);
-    } catch (err) {
-      if (err.name === "AbortError" || err.name === "StaleSearchError") {
-        return;
-      }
-
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-
-      setResults([]);
-      setLatency(null);
-      setSubQueries([]);
-      setCount(0);
-      setError(err.message || "Fusion search failed");
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setLoading(false);
-      }
-    }
-  }
-
   async function searchMultimodal(options) {
     const requestId = ++requestIdRef.current;
     setLoading(true);
@@ -229,29 +163,6 @@ export function useRetrievalSearch() {
     }
   }
 
-  async function searchByColor({ dataset, cells, topK = 20 }) {
-    if (!cells?.length) return;
-    const requestId = ++requestIdRef.current;
-    setLoading(true); setError("");
-    try {
-      const data = await searchColorRetrieval({ dataset, cells, topK, videoIds: activeIds });
-      if (requestId !== requestIdRef.current) return;
-      setResults(data.results ?? []);
-      setLatency(data.latencyMs ?? null);
-      setSubQueries([]);
-      setCount(data.count ?? 0);
-      setLastQuery(data.query);
-      setSearchMode("color");
-      setDurationLimit(-1);
-    } catch (err) {
-      if (err.name === "AbortError" || err.name === "StaleSearchError" || requestId !== requestIdRef.current) return;
-      setResults([]); setLatency(null); setCount(0); setError(err.message || "Color search failed");
-      throw err;
-    } finally {
-      if (requestId === requestIdRef.current) setLoading(false);
-    }
-  }
-
   function reset() {
     requestIdRef.current += 1;
 
@@ -278,9 +189,7 @@ export function useRetrievalSearch() {
     durationLimit,
     search,
     searchMultimodal,
-    searchWithFusion,
     searchSimilar,
-    searchByColor,
     reset,
   };
 }
