@@ -1,0 +1,16 @@
+# Install the appropriate PyTorch wheel first: https://pytorch.org/get-started/locally/
+# The application works on CPU too; auto selects CUDA only if torch supports it.
+torch>=2.2
+transformers>=4.49,<6
+sentencepiece>=0.2
+pillow>=10.3
+numpy>=1.26,<3
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+# Optional accelerator for exact cosine search; NumPy fallback remains available.
+# pip install faiss-cpu
+
+# Test client (no model download needed for contract tests)
+httpx>=0.27,<1
+python-multipart>=0.0.18
+requests>=2.31,<3

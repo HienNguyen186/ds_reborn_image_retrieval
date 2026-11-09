@@ -1,0 +1,233 @@
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Images, ListPlus, Play, Search, Send } from "lucide-react";
+import HighlightedSnippet from "./HighlightedSnippet";
+import { VideoVotes } from "./VideoFilter";
+
+function makeFrameResult(result, frame, idx) {
+  const frameId = Number(frame.frame_id ?? frame.keyframe_id ?? frame.keyframe_id_int ?? idx);
+  const timestamp = Number(frame.timestamp_sec ?? frame.timestamp ?? result.timestamp ?? 0);
+  const score = Number(frame.score ?? frame.similarity ?? frame.candidate_score ?? result.similarity ?? 0);
+  return {
+    ...result,
+    ...frame,
+    id: `${result.id}_q${frame.sub_query_idx ?? idx}_${frameId}`,
+    video_id: frame.video_id || result.video_id,
+    video_url: frame.video_url || result.video_url,
+    frame_id: frameId,
+    frame_name: frame.frame_name || `${String(frameId).padStart(6, "0")}.jpg`,
+    image_url: frame.image_url || result.image_url,
+    timestamp,
+    similarity: score,
+    matched_sequence: [],
+  };
+}
+
+const TemporalSequence = memo(function TemporalSequence({
+  result,
+  sequenceIndex = 0,
+  index = 0,
+  selectedId,
+  onSelect,
+  onSubmit,
+  onPlay,
+  onSimilaritySearch,
+  onSurroundingImages,
+  query,
+}) {
+  const sequence = useMemo(
+    () => Array.isArray(result?.matched_sequence) ? result.matched_sequence : [],
+    [result?.matched_sequence]
+  );
+  // ASR hits share ONE transcript across every frame in the sequence (see
+  // FaissRetrievalSystem._enrich_asr_hits) and already show it once in the
+  // header below, so the per-frame caption would just repeat it 3x. Real
+  // temporal search hits don't set `matched_texts`, so this only affects ASR.
+  const hasSharedSegmentText = Array.isArray(result?.matched_texts) && result.matched_texts.length > 0;
+  const viewportRef = useRef(null);
+  const scrollRafRef = useRef(0);
+  const [page, setPage] = useState(0);
+  const frameResults = useMemo(
+    () => sequence.map((frame, idx) => makeFrameResult(result, frame, idx)),
+    [result, sequence]
+  );
+
+  const isCarousel = sequence.length > 3;
+  const visibleCount = Math.min(sequence.length, 3);
+  const maxPage = Math.max(0, sequence.length - visibleCount);
+
+  function move(direction) {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const next = Math.max(0, Math.min(page + direction, maxPage));
+    const cards = viewport.querySelectorAll(".temporal-frame-card");
+    const target = cards[next];
+
+    setPage(next);
+
+    if (target) {
+      const left = target.offsetLeft - viewport.offsetLeft;
+      viewport.scrollTo({ left, behavior: "smooth" });
+      return;
+    }
+
+    const firstCard = cards[0];
+    const styles = window.getComputedStyle(viewport);
+    const gap = Number.parseFloat(styles.columnGap || styles.gap || "0") || 0;
+    const step = (firstCard?.getBoundingClientRect().width || viewport.clientWidth / visibleCount) + gap;
+    viewport.scrollTo({ left: next * step, behavior: "smooth" });
+  }
+
+  function syncPageFromScroll() {
+    // Scroll fires many times per frame; only do the DOM-measuring work once
+    // per animation frame so it can't fall behind and stack up jank.
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      const viewport = viewportRef.current;
+      if (!viewport || !isCarousel) return;
+
+      const cards = Array.from(viewport.querySelectorAll(".temporal-frame-card"));
+      if (!cards.length) return;
+
+      const currentLeft = viewport.scrollLeft;
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      cards.forEach((card, index) => {
+        const distance = Math.abs(card.offsetLeft - viewport.offsetLeft - currentLeft);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+
+      setPage(Math.min(nearestIndex, maxPage));
+    });
+  }
+
+  useEffect(() => () => cancelAnimationFrame(scrollRafRef.current), []);
+
+  if (!sequence.length) return null;
+
+  return (
+    <section className={`temporal-sequence-block temporal-events-${Math.min(sequence.length, 6)}`} style={{ "--sequence-event-total": sequence.length, "--stagger-index": index }}>
+      <div className="temporal-sequence-toolbar temporal-sequence-header">
+        <div>
+          <strong>Sequence #{sequenceIndex + 1}</strong>
+          <span className="temporal-sequence-count">{sequence.length} events</span>
+        </div>
+        <span className="temporal-sequence-meta">
+          {result.video_id} · {Number(result.temporal?.start_time ?? result.timestamp ?? 0).toFixed(2)}s
+          → {Number(result.temporal?.end_time ?? result.timestamp ?? 0).toFixed(2)}s
+          · {Number(result.temporal?.duration_sec ?? 0).toFixed(2)}s duration
+        </span>
+        <div className="temporal-sequence-actions">
+          <button type="button" className="temporal-pill-btn" onClick={() => onPlay?.(result)}>
+            <Play size={13} fill="currentColor" /><span className="action-label">Play</span>
+          </button>
+          <button type="button" className="temporal-pill-btn" onClick={() => onSubmit?.(result, "queue")}>
+            <ListPlus size={13} /><span className="action-label">Queue</span>
+          </button>
+          <button type="button" className="temporal-pill-btn temporal-submit-btn" onClick={() => onSubmit?.(result)}>
+            <Send size={13} /><span className="action-label">Submit</span>
+          </button>
+        </div>
+      </div>
+
+      {hasSharedSegmentText && (
+        <div className="temporal-sequence-transcript">
+          <HighlightedSnippet
+            text={result.matched_texts.join(" ")}
+            query={query}
+            maxLength={200}
+            quoted
+            highlight={false}
+          />
+        </div>
+      )}
+
+      <div className={`temporal-carousel-shell ${isCarousel ? "is-carousel" : "is-fluid"}`}>
+        {isCarousel && (
+          <button className="temporal-carousel-nav left" type="button" disabled={page === 0} onClick={() => move(-1)}>
+            <ChevronLeft size={22} />
+          </button>
+        )}
+
+        <div
+          ref={viewportRef}
+          className="temporal-frame-row"
+          style={{ "--event-count": visibleCount }}
+          onScroll={syncPageFromScroll}
+        >
+          {sequence.map((frame, idx) => {
+            const frameResult = frameResults[idx];
+            const isSelected = frameResult.id === selectedId;
+            return (
+              <article
+                key={frameResult.id}
+                className={`temporal-frame-card ${isSelected ? "selected" : ""}`}
+                onClick={() => onSelect?.(frameResult)}
+              >
+                <div className="temporal-frame-thumb">
+                  <VideoVotes videoId={frameResult.video_id} />
+                  <img src={frameResult.image_url} alt={`Event ${idx + 1}`} loading="lazy" decoding="async" />
+                  <span className="temporal-query-badge">E{idx + 1}</span>
+                  <span className="temporal-score-badge">{Number(frameResult.similarity).toFixed(3)}</span>
+                  <button
+                    className="play-button"
+                    type="button"
+                    aria-label={`Play ${frameResult.video_id} from ${frameResult.timestamp.toFixed(2)} seconds`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onPlay?.(frameResult);
+                    }}
+                  >
+                    <Play size={18} fill="currentColor" />
+                  </button>
+                </div>
+                <div className="temporal-frame-footer">
+                  <strong>{frameResult.video_id}/{String(frameResult.frame_id).padStart(6, "0")}</strong>
+                  <span>{frameResult.timestamp.toFixed(2)}s</span>
+                </div>
+                <div className="temporal-frame-actions-row">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); onSimilaritySearch?.(frameResult); }}>
+                    <Search size={12} /><span className="action-label">Similar</span>
+                  </button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); onSurroundingImages?.(frameResult); }}>
+                    <Images size={12} /><span className="action-label">Surround</span>
+                  </button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); onSubmit?.(frameResult, "queue"); }}>
+                    <ListPlus size={12} /><span className="action-label">Queue</span>
+                  </button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); onSubmit?.(frameResult); }}>
+                    <Send size={12} /><span className="action-label">Submit</span>
+                  </button>
+                </div>
+                {!hasSharedSegmentText && frame.sub_query && (
+                  <div className="temporal-frame-query">
+                    <HighlightedSnippet
+                      text={frame.sub_query}
+                      query={query}
+                      maxLength={90}
+                      highlight={false}
+                    />
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+
+        {isCarousel && (
+          <button className="temporal-carousel-nav right" type="button" disabled={page >= maxPage} onClick={() => move(1)}>
+            <ChevronRight size={22} />
+          </button>
+        )}
+      </div>
+      {isCarousel && <div className="temporal-carousel-status">{page + 1}–{Math.min(page + visibleCount, sequence.length)} / {sequence.length}</div>}
+    </section>
+  );
+});
+
+export default TemporalSequence;

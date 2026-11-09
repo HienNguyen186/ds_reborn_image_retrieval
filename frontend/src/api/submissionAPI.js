@@ -1,0 +1,95 @@
+import { imageAnswer } from "../utils/imageSubmission";
+
+const RAW_API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
+const NGROK_HEADER = { "ngrok-skip-browser-warning": "true" };
+
+function apiUrl(path) {
+  return `${API_BASE_URL}/${String(path).replace(/^\/+/, "")}`;
+}
+
+export function getDefaultSubmissionSettings() {
+  return {
+    dresUrl: import.meta.env.VITE_SUBMISSION || "",
+    teamId: import.meta.env.VITE_TEAM_ID || "",
+    teamPassword: import.meta.env.VITE_TEAM_PASSWORD || "",
+    evaluationId: import.meta.env.VITE_DRES_EVALUATION_ID || "",
+  };
+}
+
+export async function loginDresViaBackend({ dresUrl, username, password }) {
+  const response = await fetch(apiUrl("/api/dres/login"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...NGROK_HEADER,
+    },
+    body: JSON.stringify({
+      dres_url: dresUrl,
+      username,
+      password,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(extractErrorMessage(text, "DRES login failed"));
+  }
+
+  return response.json();
+}
+
+export async function submitDresViaBackend({
+  dresUrl,
+  sessionId,
+  evaluationId,
+  task,
+  items,
+  answer,
+}) {
+  const response = await fetch(apiUrl("/api/dres/submit"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...NGROK_HEADER,
+    },
+    body: JSON.stringify({
+      dres_url: dresUrl,
+      session_id: sessionId,
+      evaluation_id: evaluationId || null,
+      task,
+      request_id: crypto.randomUUID(),
+      answer: answer || null,
+      items: items.map(imageAnswer),
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(extractErrorMessage(text, "DRES submit failed"));
+  }
+
+  return response.json();
+}
+
+function extractErrorMessage(text, fallback) {
+  try {
+    const data = JSON.parse(text);
+    return data.detail || data.message || data.error || text || fallback;
+  } catch {
+    return text || fallback;
+  }
+}
+
+export async function previewDresViaBackend({ dresUrl, sessionId, evaluationId, task = "kis", items }) {
+  const response = await fetch(apiUrl("/api/dres/submit/preview"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...NGROK_HEADER },
+    body: JSON.stringify({ dres_url: dresUrl, session_id: sessionId, evaluation_id: evaluationId || null, task,
+      items: items.map(imageAnswer) }),
+  });
+  if (!response.ok) throw new Error(extractErrorMessage(await response.text(), "Không kiểm tra được ảnh trên DRES"));
+  return response.json();
+}

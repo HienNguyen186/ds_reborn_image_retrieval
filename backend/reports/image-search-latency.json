@@ -1,0 +1,34 @@
+{
+  "hardware": "NVIDIA T1200 Laptop GPU 4GB",
+  "images": 5000,
+  "vectors": 25000,
+  "dimension": 768,
+  "scope": "backend service, top_k=60, grid enabled; excludes browser and network",
+  "before": {
+    "rank_ms": [
+      98.4559,
+      100.8671,
+      107.4941,
+      122.2572
+    ],
+    "first_query_ms": 8162.5,
+    "warm_queries_ms": [
+      158.0,
+      154.0
+    ]
+  },
+  "after": {
+    "rank_ms": [
+      3.75,
+      3.06,
+      3.04
+    ],
+    "startup_model_warmup_ms": 8017.2,
+    "new_queries_ms": [
+      46.7,
+      46.1
+    ],
+    "repeat_query_ms": 3.4
+  },
+  "reindex_required": false
+}
