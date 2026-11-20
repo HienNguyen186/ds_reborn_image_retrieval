@@ -108,7 +108,7 @@ Mở **Settings → DRES Submission**, kiểm tra DRES URL và Team ID, nhập m
 
 Đăng nhập website DRES trong trình duyệt và đăng nhập qua ứng dụng là hai session riêng. Mật khẩu chỉ nhập ở Settings, không được ghi vào file cấu hình hoặc bản build.
 
-### Nộp ảnh KIS lên DRES
+### Nộp ảnh hoặc câu trả lời lên DRES
 
 1. Đăng nhập DRES trong Settings; giữ God Mode tắt để nộp trực tiếp tới máy chủ đã cấu hình.
 2. Tìm ảnh, bấm **Queue** để đưa vào hàng đợi. Chọn đúng một ảnh bằng nút radio nếu có nhiều ảnh.
@@ -116,6 +116,8 @@ Mở **Settings → DRES Submission**, kiểm tra DRES URL và Team ID, nhập m
 4. Bấm **Submit tên_ảnh.jpg** để nộp ảnh được chọn; nút Submit trên thẻ kết quả cũng nộp đúng ảnh đó.
 
 Backend đối chiếu `image_id` với catalog local và đọc evaluation ACTIVE/current task. Không sử dụng `frame_idx`, timestamp hoặc nhóm `Batch1/08` làm tên media.
+
+Trong cửa sổ phóng to ảnh, để trống ô câu trả lời để nộp KIS; nhập câu trả lời để nộp QA. Task đang chạy trên DRES phải khớp với chế độ được chọn. Theo hướng dẫn Castle QA, payload QA chỉ gồm `{"text": "<câu trả lời>"}`; không gửi tên ảnh hay thông tin nhóm ảnh kèm theo.
 
 Theo `DRES_HuongDan_Castle5000.pdf` của BTC (mục 2 và 7), tên ảnh trên DRES lấy theo cột `imageID` trong metadata: bỏ đuôi `.jpg` và thêm tiền tố **`day1_Kitchen_`**. Collection luôn là **`castle5000`**. Vì vậy `09_1573.jpg` phải nộp thành `day1_Kitchen_09_1573`; nộp `09_1573` hoặc `09_1573.jpg` sẽ gây lỗi “Could not find media item”. Tiền tố chỉ được thêm một lần nếu tên ảnh đã có sẵn.
 

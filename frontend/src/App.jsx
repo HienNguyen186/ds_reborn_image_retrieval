@@ -1096,6 +1096,12 @@ function RetrievalApp() {
     void handleSubmitResult({ task: "kis", items: [item], answer: "" });
   }, [handleQueueResult, handleSubmitResult, settings.dataset]);
 
+  const handleDirectImageSubmit = useCallback((result, { task, answer }) => {
+    if (!result) return;
+    const item = toSubmissionItem(result, settings.dataset);
+    void handleSubmitResult({ task, items: [item], answer });
+  }, [handleSubmitResult, settings.dataset]);
+
   const closeAllModals = useCallback(() => {
     surroundReqRef.current += 1;
     similarReqRef.current += 1;
@@ -1254,7 +1260,7 @@ function RetrievalApp() {
         </main>
 
         <ImageViewer
-          key={imageResult ? `${imageResult.id}-open` : "image-closed"}
+          key={imageResult ? `${imageResult.image_url || imageResult.id}-open` : "image-closed"}
           open={Boolean(imageResult)}
           result={imageResult}
           dataset={physicalDatasetFromResult(imageResult, settings.dataset)}
@@ -1263,6 +1269,8 @@ function RetrievalApp() {
           onNavigate={handleOpenImage}
           onClose={handleCloseImage}
           onSubmit={handleResultAction}
+          onDirectSubmit={handleDirectImageSubmit}
+          submitting={submissionPending}
         />
 
         <ImageBrowser open={previewOpen} onClose={() => setPreviewOpen(false)} onOpenImage={(item, photos) => { setBrowserImages(photos); handleOpenImage(item); }} />

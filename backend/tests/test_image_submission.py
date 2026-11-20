@@ -41,7 +41,7 @@ class ImageSubmissionTests(unittest.TestCase):
 
     def prepare(self, status='ACTIVE', images=None):
         self.remote.get.side_effect = [response(data=[{'id':'run','status':status,'name':'Test'}]),
-                                      response(data={'name':'KIS01','taskType':'KIS'}),
+                                      response(data={'name':'KIS01','taskType':'LSC Known-Item Search'}),
                                       response(data=[self.collection]),
                                       response(data=images if images is not None else [self.remote_image])]
 
@@ -54,6 +54,40 @@ class ImageSubmissionTests(unittest.TestCase):
         self.assertNotIn('secret-session',result.text)
         self.remote.post.assert_not_called()
         self.remote.cookies.set.assert_called_once_with('SESSIONID','secret-session',domain='dres.2hbread.com',path='/',secure=True)
+
+    def test_qa_submission_sends_only_trimmed_text_answer(self):
+        self.remote.get.side_effect = [
+            response(data=[{'id':'run','status':'ACTIVE','name':'Test'}]),
+            response(data={'name':'QA01','taskType':'LSC Question & Answer Text'}),
+        ]
+        body = {
+            **self.body,
+            'task':'qa',
+            'answer':' red kettle ',
+            'items':[{'image_id':'Batch1/08_1115.jpg'}],
+        }
+        result = self.client.post('/api/dres/submit', json=body)
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(
+            self.remote.post.call_args.kwargs['json'],
+            {'answerSets':[{'answers':[{'text':'red kettle'}]}]},
+        )
+
+    def test_qa_requires_answer_and_matching_active_task(self):
+        empty_answer = self.client.post(
+            '/api/dres/submit',
+            json={**self.body, 'task':'qa', 'answer':''},
+        )
+        self.assertEqual(empty_answer.status_code, 400)
+        self.remote.get.assert_not_called()
+
+        self.prepare()
+        mismatch = self.client.post(
+            '/api/dres/submit',
+            json={**self.body, 'task':'qa', 'answer':'red kettle'},
+        )
+        self.assertEqual(mismatch.status_code, 409)
+        self.remote.post.assert_not_called()
 
     def test_submit_is_item_only_and_same_request_id_is_not_posted_twice(self):
         result=self.client.post('/api/dres/submit',json=self.body)

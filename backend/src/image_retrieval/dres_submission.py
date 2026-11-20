@@ -24,6 +24,7 @@ class SubmissionRequest(BaseModel):
     session_id: SecretStr
     evaluation_id: str | None = Field(default=None, max_length=256)
     task: str = "kis"
+    answer: str | None = Field(default=None, max_length=4000)
     items: list[ImageAnswer] = Field(min_length=1, max_length=1)
     request_id: str | None = Field(default=None, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
 
@@ -61,11 +62,15 @@ def resolve_submission(service, legacy, payload, session):
     token = payload.session_id.get_secret_value().strip()
     if not token:
         raise HTTPException(401, "Cần đăng nhập DRES trước khi nộp ảnh.")
+    task = payload.task.strip().lower()
+    if task not in {"kis", "qa"}:
+        raise HTTPException(422, "Luồng ảnh chỉ hỗ trợ task KIS hoặc QA.")
+    answer_text = (payload.answer or "").strip()
+    if task == "qa" and not answer_text:
+        raise HTTPException(400, "QA cần có câu trả lời.")
     # Client endpoints accept ?session=, but collection/media metadata uses
     # CookieAuth in this deployment's OpenAPI. Scope it to the allowed host.
     session.cookies.set("SESSIONID", token, domain=urlsplit(base).hostname, path="/", secure=True)
-    if payload.task.lower() != "kis":
-        raise HTTPException(422, "Luồng này nộp một ảnh KIS; không chuyển ảnh thành đáp án video hoặc QA.")
     item = payload.items[0]
     if item.image_id:
         photo = service.catalog.by_id.get(item.image_id)
@@ -95,6 +100,21 @@ def resolve_submission(service, legacy, payload, session):
     current = read_json(session, base, "/api/v2/client/evaluation/currentTask/" + quote(evaluation["id"], safe=""), token)
     if not isinstance(current, dict) or not current.get("name"):
         raise HTTPException(409, "DRES chưa có task đang hoạt động để nộp.")
+    task_type = str(current.get("taskType") or "").strip().casefold()
+    task_name = str(current.get("name") or "").strip().casefold()
+    if "question" in task_type or task_type.startswith("qa") or task_name.startswith("qa"):
+        active_task = "qa"
+    elif "known-item" in task_type or task_type.startswith("kis") or task_name.startswith("kis"):
+        active_task = "kis"
+    else:
+        active_task = None
+    if active_task and active_task != task:
+        raise HTTPException(409, f"Task DRES đang chạy là {active_task.upper()}; không thể nộp theo {task.upper()}.")
+    if task == "qa":
+        return {"base": base, "evaluation_id": evaluation["id"], "evaluation_name": evaluation.get("name"),
+                "task_name": current["name"], "image_id": photo.image_id,
+                "media_item_name": photo.path.name, "resolution": "qa_text",
+                "payload": {"answerSets": [{"answers": [{"text": answer_text}]}]}}
     if config.get("metadata_mode", "participant") == "participant":
         # Castle5000 imports metadata imageID, not the scanner's bare stem.
         # Its guide requires day1_Kitchen_<stem> and collection castle5000.
