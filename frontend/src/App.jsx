@@ -21,7 +21,6 @@ import SurroundingFramesModal from "./components/SurroundingFramesModal";
 import SimilarityFramesModal from "./components/SimilarityFramesModal";
 import ImageViewer from "./components/ImageViewer";
 import ImageBrowser from "./components/ImageBrowser";
-import SubmissionQueueModal from "./components/SubmissionQueueModal";
 import { useRetrievalSearch } from "./hooks/useRetrievalSearch";
 import {
   checkBackendHealth,
@@ -37,7 +36,6 @@ import {
   getDefaultSubmissionSettings,
   loginDresViaBackend,
   submitDresViaBackend,
-  previewDresViaBackend,
 } from "./api/submissionAPI";
 import { getGodModeEndpoint, godModeSocketUrl } from "./api/godmodeAPI";
 import { playNotifySound } from "./utils/notifySound";
@@ -77,7 +75,6 @@ function toSubmissionItem(result, dataset) {
     ...result,
     dataset: sourceDataset,
     collection: sourceDataset,
-    queue_id: `${sourceDataset}:${imageAnswer(result).image_id || `${result.video_id}:${frameId}`}`,
     frame_id: frameId,
     timestamp,
     image_url: result.image_url || result.raw?.image_url || "",
@@ -160,8 +157,6 @@ function RetrievalApp() {
   const [similarColumns, setSimilarColumns] = useState(5);
   const [modalOrder, setModalOrder] = useState([]);
   const [imageResult, setImageResult] = useState(null);
-  const [submissionQueue, setSubmissionQueue] = useState([]);
-  const [submissionQueueOpen, setSubmissionQueueOpen] = useState(false);
   const [submissionPending, setSubmissionPending] = useState(false);
 
   // ── Settings ─────────────────────────────────────────
@@ -311,6 +306,15 @@ function RetrievalApp() {
   useEffect(() => {
     const handleSearchModeShortcut = (event) => {
       if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.repeat) return;
+
+      if (event.code === "KeyK") {
+        const searchInput = document.querySelector(".search-chat-textarea, .inline-query-text-input");
+        if (!searchInput) return;
+
+        event.preventDefault();
+        searchInput.focus();
+        return;
+      }
 
       const nextMode = SEARCH_MODE_BY_CODE[event.code]?.key;
       if (!nextMode) return;
@@ -966,12 +970,6 @@ function RetrievalApp() {
     pushToast("pending", "DRES session cleared");
   }, [pushToast]);
 
-  const handleQueueResult = useCallback((result) => {
-    if (!result?.video_id && !result?.image_id && !result?.raw?.image_id) return;
-    const item = toSubmissionItem(result, settings.dataset);
-    setSubmissionQueue((previous) => previous.some((queued) => queued.queue_id === item.queue_id) ? previous : [...previous, item]);
-  }, [settings.dataset]);
-
   // Model indexes are isolated per physical dataset. Refresh the selector on
   // every dataset switch and discard selections that do not exist there.
   useEffect(() => {
@@ -1055,13 +1053,13 @@ function RetrievalApp() {
               item.video_id !== verified.video_id || item.frame_id !== verified.frame_id
             )]);
           }
-          pushToast("correct", "Correct", label);
+          pushToast("correct", "ĐÚNG", label);
         } else if (response.status === "wrong") {
-          pushToast("wrong", "Wrong", response.message || label);
+          pushToast("wrong", "SAI", response.message || label);
         } else if (response.status === "pending") {
-          pushToast("pending", "Submitted", response.message || label);
+          pushToast("pending", "Đã gửi", response.message || label);
         } else {
-          pushToast("warning", "Cannot submit", response.message || label);
+          pushToast("warning", "Không thể nộp", response.message || label);
         }
       } catch (err) {
         pushToast("warning", "Cannot submit", getErrorMessage(err));
@@ -1073,28 +1071,11 @@ function RetrievalApp() {
     [dres.sessionId, pushToast, settings]
   );
 
-  const handlePreviewSubmission = useCallback(async (item) => {
-    let sessionId = dres.sessionId;
-    let evaluationId = settings.evaluationId;
-    if (!sessionId) {
-      const login = await loginDresViaBackend({ dresUrl: settings.submitUrl, username: settings.username, password: settings.password });
-      sessionId = login.session_id;
-      evaluationId = login.evaluation_id || evaluationId;
-      setDres({ loading: false, sessionId, user: login.user ?? null });
-      if (evaluationId) setSettings(previous => ({ ...previous, evaluationId }));
-    }
-    return previewDresViaBackend({ dresUrl: settings.submitUrl, sessionId, evaluationId, task: "kis", items: [item] });
-  }, [dres.sessionId, settings]);
-
-  const handleResultAction = useCallback((result, action = "submit") => {
+  const handleSubmitResultFromCard = useCallback((result) => {
     if (!result?.video_id && !result?.image_id && !result?.raw?.image_id) return;
     const item = toSubmissionItem(result, settings.dataset);
-    if (action === "queue") {
-      handleQueueResult(item);
-      return;
-    }
     void handleSubmitResult({ task: "kis", items: [item], answer: "" });
-  }, [handleQueueResult, handleSubmitResult, settings.dataset]);
+  }, [handleSubmitResult, settings.dataset]);
 
   const handleDirectImageSubmit = useCallback((result, { task, answer }) => {
     if (!result) return;
@@ -1207,7 +1188,7 @@ function RetrievalApp() {
                         columns={columns}
                         selectedId={selectedId}
                         onSelect={handleSelectResult}
-                        onSubmit={handleResultAction}
+                        onSubmit={handleSubmitResultFromCard}
                         onPlay={handleOpenImage}
                         onSimilaritySearch={handleSimilaritySearch}
                         onSurroundingImages={handleOpenSurroundingImages}
@@ -1224,7 +1205,7 @@ function RetrievalApp() {
                         columns={columns}
                         selectedId={selectedId}
                         onSelect={handleSelectResult}
-                        onSubmit={handleResultAction}
+                        onSubmit={handleSubmitResultFromCard}
                         onPlay={handleOpenImage}
                         onSimilaritySearch={handleSimilaritySearch}
                         onSurroundingImages={handleOpenSurroundingImages}
@@ -1240,7 +1221,6 @@ function RetrievalApp() {
                       dataset={physicalDatasetFromResult(selected, settings.dataset)}
                       onClose={handleCloseDetail}
                       onPreview={handleOpenImage}
-                      onSubmit={handleResultAction}
                     />
                   )}
                 </div>
@@ -1268,7 +1248,6 @@ function RetrievalApp() {
           items={viewerImages}
           onNavigate={handleOpenImage}
           onClose={handleCloseImage}
-          onSubmit={handleResultAction}
           onDirectSubmit={handleDirectImageSubmit}
           submitting={submissionPending}
         />
@@ -1296,10 +1275,9 @@ function RetrievalApp() {
           layer={modalLayer("surround")}
           onClose={closeAllModals}
           onSelect={handleSelectResult}
-          onSubmit={handleResultAction}
+          onSubmit={handleSubmitResultFromCard}
           onPlay={handleOpenImage}
           onSimilaritySearch={handleSimilaritySearch}
-          onSurroundingImages={handleOpenSurroundingImages}
         />
 
         <SimilarityFramesModal
@@ -1312,27 +1290,9 @@ function RetrievalApp() {
           layer={modalLayer("similar")}
           onClose={closeAllModals}
           onSelect={handleSelectResult}
-          onSubmit={handleResultAction}
+          onSubmit={handleSubmitResultFromCard}
           onPlay={handleOpenImage}
           onSimilaritySearch={handleSimilaritySearch}
-          onSurroundingImages={handleOpenSurroundingImages}
-        />
-
-        <button type="button" className="submission-queue-launcher" onClick={() => setSubmissionQueueOpen(true)}>
-          Queue <span>{submissionQueue.length}</span>
-        </button>
-        <SubmissionQueueModal
-          open={submissionQueueOpen}
-          items={submissionQueue}
-          onPreview={handlePreviewSubmission}
-          submitting={submissionPending}
-          onClose={() => setSubmissionQueueOpen(false)}
-          onChange={setSubmissionQueue}
-          onSubmit={handleSubmitResult}
-          onPlay={(item) => {
-            setSubmissionQueueOpen(false);
-            handleOpenImage({ ...item, timestamp: Number(item.timestamp || 0) });
-          }}
         />
 
         <ToastHost toasts={toasts} />

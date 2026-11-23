@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Images, ListPlus, Play, Search, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, Images, Play, Search, Send } from "lucide-react";
 import HighlightedSnippet from "./HighlightedSnippet";
 import { VideoVotes } from "./VideoFilter";
 
@@ -126,9 +126,6 @@ const TemporalSequence = memo(function TemporalSequence({
           <button type="button" className="temporal-pill-btn" onClick={() => onPlay?.(result)}>
             <Play size={13} fill="currentColor" /><span className="action-label">Play</span>
           </button>
-          <button type="button" className="temporal-pill-btn" onClick={() => onSubmit?.(result, "queue")}>
-            <ListPlus size={13} /><span className="action-label">Queue</span>
-          </button>
           <button type="button" className="temporal-pill-btn temporal-submit-btn" onClick={() => onSubmit?.(result)}>
             <Send size={13} /><span className="action-label">Submit</span>
           </button>
@@ -196,9 +193,6 @@ const TemporalSequence = memo(function TemporalSequence({
                   </button>
                   <button type="button" onClick={(e) => { e.stopPropagation(); onSurroundingImages?.(frameResult); }}>
                     <Images size={12} /><span className="action-label">Surround</span>
-                  </button>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); onSubmit?.(frameResult, "queue"); }}>
-                    <ListPlus size={12} /><span className="action-label">Queue</span>
                   </button>
                   <button type="button" onClick={(e) => { e.stopPropagation(); onSubmit?.(frameResult); }}>
                     <Send size={12} /><span className="action-label">Submit</span>

@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { ZoomIn, Send, Search, Images, ListPlus } from "lucide-react";
+import { ZoomIn, Send, Search } from "lucide-react";
 import { VideoVotes } from "./VideoFilter";
 import HighlightedSnippet from "./HighlightedSnippet";
 
@@ -12,7 +12,6 @@ const ResultCard = memo(function ResultCard({
   onSubmit,
   onPlay,
   onSimilaritySearch,
-  onSurroundingImages,
   query,
 }) {
   const score    = (result.similarity * 100).toFixed(1);
@@ -38,20 +37,10 @@ const ResultCard = memo(function ResultCard({
     onSubmit?.(result);
   }, [onSubmit, result]);
 
-  const handleQueue = useCallback((e) => {
-    e.stopPropagation();
-    onSubmit?.(result, "queue");
-  }, [onSubmit, result]);
-
   const handleSimilaritySearch = useCallback((e) => {
     e.stopPropagation();
     onSimilaritySearch?.(result);
   }, [onSimilaritySearch, result]);
-
-  const handleSurroundingImages = useCallback((e) => {
-    e.stopPropagation();
-    onSurroundingImages?.(result);
-  }, [onSurroundingImages, result]);
 
   // Image lazy-load fade
   function onImgLoad(e) {
@@ -136,27 +125,6 @@ const ResultCard = memo(function ResultCard({
               <span className="action-label">Similar</span>
             </button>
 
-            <button
-              type="button"
-              className="result-mini-btn"
-              title="Surrounding images"
-              aria-label="Surrounding images"
-              onClick={handleSurroundingImages}
-            >
-              <Images size={15} strokeWidth={2.4} />
-              <span className="action-label">Surround</span>
-            </button>
-
-            <button
-              type="button"
-              className="result-mini-btn"
-              title="Add to submission queue"
-              aria-label="Add to submission queue"
-              onClick={handleQueue}
-            >
-              <ListPlus size={15} strokeWidth={2.4} />
-              <span className="action-label">Queue</span>
-            </button>
             <button type="button" className="result-submit-btn" title="Submit KIS" aria-label="Submit KIS" onClick={handleSubmit}>
               <Send size={15} strokeWidth={2.4} />
               <span className="action-label">Submit</span>

@@ -83,13 +83,3 @@ function extractErrorMessage(text, fallback) {
   }
 }
 
-export async function previewDresViaBackend({ dresUrl, sessionId, evaluationId, task = "kis", items }) {
-  const response = await fetch(apiUrl("/api/dres/submit/preview"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...NGROK_HEADER },
-    body: JSON.stringify({ dres_url: dresUrl, session_id: sessionId, evaluation_id: evaluationId || null, task,
-      items: items.map(imageAnswer) }),
-  });
-  if (!response.ok) throw new Error(extractErrorMessage(await response.text(), "Không kiểm tra được ảnh trên DRES"));
-  return response.json();
-}

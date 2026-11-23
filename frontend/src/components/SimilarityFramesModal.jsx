@@ -14,7 +14,6 @@ export default function SimilarityFramesModal({
   onSubmit,
   onPlay,
   onSimilaritySearch,
-  onSurroundingImages,
   layer = 1,
 }) {
   const sourceRef = useRef(null);
@@ -31,11 +30,25 @@ export default function SimilarityFramesModal({
     });
   }, [open, sourceResult?.video_id, sourceResult?.frame_id, frames.length]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose?.();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open || !sourceResult) return null;
 
   return (
     <div className="surround-modal-backdrop" style={{ zIndex: 3000 + layer }} onClick={onClose}>
-      <div className="surround-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="surround-modal similarity-modal--fullscreen" onClick={(e) => e.stopPropagation()}>
         <div className="surround-modal-header">
           <div>
             <h2>Similar Frames</h2>
@@ -94,7 +107,6 @@ export default function SimilarityFramesModal({
                   onSubmit={onSubmit}
                   onPlay={onPlay}
                   onSimilaritySearch={onSimilaritySearch}
-                  onSurroundingImages={onSurroundingImages}
                 />
               </div>
             );

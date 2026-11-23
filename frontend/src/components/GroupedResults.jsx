@@ -90,7 +90,7 @@ export default function GroupedResults({
             <div className="godmode-rerank-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
               {verified.map((result) => <ResultCard key={result.id} result={result} selected={result.id === selectedId}
                 onSelect={onSelect} onSubmit={onSubmit} onPlay={onPlay} onSimilaritySearch={onSimilaritySearch}
-                onSurroundingImages={onSurroundingImages} query={query} />)}
+                query={query} />)}
             </div>
           </div>
         </section>
@@ -132,7 +132,7 @@ export default function GroupedResults({
                   ) : (
                     <ResultCard key={result.id} result={result} selected={result.id === selectedId}
                       onSelect={onSelect} onSubmit={onSubmit} onPlay={onPlay} onSimilaritySearch={onSimilaritySearch}
-                      onSurroundingImages={onSurroundingImages} query={query} />
+                      query={query} />
                   ))}
                 </div>
               </div>

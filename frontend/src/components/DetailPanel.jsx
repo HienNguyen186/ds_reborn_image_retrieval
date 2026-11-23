@@ -1,7 +1,7 @@
-import { Copy, ExternalLink, FileImage, Info, Send, X, ZoomIn } from "lucide-react";
+import { Copy, ExternalLink, FileImage, Info, X, ZoomIn } from "lucide-react";
 import "../image-viewer.css";
 
-export default function DetailPanel({ result, onClose, onSubmit, onPreview }) {
+export default function DetailPanel({ result, onClose, onPreview }) {
   if (!result) return null;
   const filename = result.frame_name || result.raw?.filename || result.path;
   const imageId = result.raw?.image_id || result.image_id || result.path;
@@ -15,7 +15,6 @@ export default function DetailPanel({ result, onClose, onSubmit, onPreview }) {
       <button onClick={()=>copy(filename)}><Copy size={15} />Tên ảnh</button>
       <button onClick={()=>copy(imageId)}><Copy size={15} />Mã ảnh</button>
       <a href={result.image_url} target="_blank" rel="noreferrer"><ExternalLink size={15} />Ảnh gốc</a>
-      <button onClick={()=>onSubmit?.(result, "queue")}><Send size={15} />Thêm hàng đợi</button>
     </div>
     <div className="detail-section"><h4><FileImage size={14} /> {filename}</h4><p className="detail-path">{imageId}</p><p>Batch: {result.raw?.batch || "—"}</p><p>Độ tương đồng: {(score*100).toFixed(1)}%</p><p>{result.width && result.height ? `${result.width} × ${result.height} px` : ""}</p></div>
     {result.caption && <div className="detail-section"><h4>Mô tả</h4><p>{result.caption}</p></div>}

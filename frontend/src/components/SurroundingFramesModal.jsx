@@ -14,7 +14,6 @@ export default function SurroundingFramesModal({
   onSubmit,
   onPlay,
   onSimilaritySearch,
-  onSurroundingImages,
   layer = 1,
 }) {
   const centerRef = useRef(null);
@@ -97,7 +96,6 @@ export default function SurroundingFramesModal({
                   onSubmit={onSubmit}
                   onPlay={onPlay}
                   onSimilaritySearch={onSimilaritySearch}
-                  onSurroundingImages={onSurroundingImages}
                 />
               </div>
             );
